@@ -8,24 +8,35 @@ library(inspectdf) #easy summary of data frames with plots
 library(ggmosaic) #ggplot mosaic plots
 library(RColorBrewer) #colour palette visualisation
 library(rsq) #r squared for GLM
+library(formattable) #visually appealing tables
+library(gt)
 
 docvis <- read_csv("docvis.csv")
 attach(docvis)
 plot(visits)
 
+docvis.all.numerical <- read_csv("docvis.csv") #read in from csv, has categorical variables as numerical 
 docvis <- mutate_at(docvis,c(4,5,6,7,8),as.factor) #change final 5 columns data type to factor.
-docvis.factor <- mutate_at(docvis,c(1:8),as.fact)
+docvis.factor <- mutate_at(docvis,c(1:8),as.factor)
 
 #numerical summaries
+visits.freq <- round(table(visits)/length(visits),digits = 3)
+visits.freq
+
+means.and.sd <- mutate_at(inspect_num(docvis.all.numerical)[,c(1,5,8)],c(2,3),round,digits = 3) #computes means and stanard devs of all variables, then rounds to 3 decimal places
+formattable(means.and.sd)
+
 test.poisson <- as_tibble(rpois(5190,mean(visits)))
 test.poisson <- (test.poisson %>% bind_cols(rep(0,times = 5190)) %>% rename(is_real=...2))
-visits <- (visits %>% as_tibble() %>% bind_cols(rep(1,times = 5190)) %>% rename(is_real=...2))
-real.model.comparison <- bind_rows(test.poisson,visits)
+visits.real <- (visits %>% as_tibble() %>% bind_cols(rep(1,times = 5190)) %>% rename(is_real=...2))
+real.model.comparison <- bind_rows(test.poisson,visits.real)
 real.model.comparison <- mutate_at(real.model.comparison,c(2),as.factor)
+
+
 
 ggplot(real.model.comparison) + geom_bar(aes(x=value, fill = is_real),alpha=0.8, position = position_dodge()) + scale_fill_brewer(palette = "Paired", labels = c('Male','Female')) + scale_x_continuous(name = "Number of visits", breaks = seq(0,9,1))
 
-docvis %>% inspect_num()
+
 docvis %>% inspect_num() %>% show_plot()
 
 docvis %>% inspect_cat()
@@ -50,10 +61,22 @@ ggplot(docvis_no0,aes(x=visits)) + geom_histogram(binwidth = 1)
 
 
 #q2 - glm fitting
+#dont have data on patients recent/long term health measures
 null.model <- glm(visits ~ 1, data = docvis, family = "poisson")
 full.model <- glm(visits ~ age + income + private + freepoor + freerepat + lchronic + female*. ,data = docvis, family = "poisson")
 summary(full.model)
+rsq(full.model)
 
 reduced.model <- glm(visits ~ age + income + freepoor + lchronic + female + age:female, data = docvis, family = "poisson")
 summary(reduced.model)
 rsq(reduced.model, type = "kl")
+
+step(full.model, scope = null.model, direction = "backward")
+### mention Wald tests
+### also do chi squared stuff (is it still valid for poisson with low counts, maybe only breaks for saturated model).
+#q3 - diagnostics
+
+
+
+
+#q4 - interpreation + confidence intervals
