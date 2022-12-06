@@ -7,6 +7,7 @@ library(tidyverse) #tidyverse!
 library(inspectdf) #easy summary of data frames with plots
 library(ggmosaic) #ggplot mosaic plots
 library(RColorBrewer) #colour palette visualisation
+library(rsq) #r squared for GLM
 
 docvis <- read_csv("docvis.csv")
 attach(docvis)
@@ -31,8 +32,9 @@ docvis %>% inspect_cat()
 docvis.factor %>% inspect_cat() %>% show_plot()
 #plots
   
-age.vis.mosaic <- ggplot(data = docvis.factor) + geom_mosaic(aes(x = product(age), fill=age), divider = "vspine") + labs(title = 'Age|Number of Visits') + facet_grid(~visits) + theme(aspect.ratio = 3,axis.text.x = element_blank(),axis.ticks.x = element_blank())  
-ggsave(age.vis.mosaic, filename = "")
+age.vis.mosaic <- ggplot(data = docvis.factor) + geom_mosaic(aes(x = product(age), fill=age), divider = "vspine") + labs(title = 'Age|Number of Visits') + facet_grid(~visits) + theme(aspect.ratio = 3,axis.text.x = element_blank(),axis.ticks.x = element_blank()) + guides(fill = guide_legend(reverse=TRUE))
+ggsave(age.vis.mosaic, filename = "age_vis_mosaic.png",height = 4,width = 13)
+
 docvis %>% inspect_num() %>% show_plot() #histograms of each numerical column
 
 ggplot(docvis,aes(x=visits)) + geom_histogram(binwidth=1, fill = "#1F78B4", col = "grey", alpha = 0.7) + scale_x_continuous(name = "Number of visits", breaks = seq(2,9,1)) + ylab("Count") + stat_bin(binwidth=1, geom="text", colour="black", size=3.5, aes(label=..count..),vjust = "inward", position = position_dodge()) 
@@ -45,3 +47,13 @@ ggplot(docvis,aes(x=private,y=visits)) + geom_boxplot()
 docvis_no0 <- as_tibble(filter(docvis,visits != 0 & visits != 1))
 ggplot(docvis_no0,aes(x=visits)) + geom_histogram(binwidth = 1) 
 #+ geom_point(aes(x=jitter(docvis$age),y=jitter(docvis$vsits))) 
+
+
+#q2 - glm fitting
+null.model <- glm(visits ~ 1, data = docvis, family = "poisson")
+full.model <- glm(visits ~ age + income + private + freepoor + freerepat + lchronic + female*. ,data = docvis, family = "poisson")
+summary(full.model)
+
+reduced.model <- glm(visits ~ age + income + freepoor + lchronic + female + age:female, data = docvis, family = "poisson")
+summary(reduced.model)
+rsq(reduced.model, type = "kl")
